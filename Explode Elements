@@ -1,0 +1,23 @@
+import bpy
+
+def split_mesh_elements(obj):
+    # Get the mesh data from the object
+    mesh = obj.data
+    
+    # Split the mesh into separate elements
+    bpy.ops.mesh.separate(type='LOOSE')
+    
+    # Get the new objects created by the separation
+    new_objs = bpy.context.selected_objects
+    
+    # Set the name of each new object to the original object name
+    for i, new_obj in enumerate(new_objs):
+        new_obj.name = obj.name + "_element" + str(i+1)
+    
+    # Return the new objects
+    return new_objs
+
+# Example usage:
+obj = bpy.context.active_object
+new_objs = split_mesh_elements(obj)
+print("Split object into", len(new_objs), "elements")
