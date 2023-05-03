@@ -1,0 +1,97 @@
+import bpy
+import bmesh
+import random
+import numpy as np
+from mathutils import Vector
+
+# Function to delete all mesh objects in the scene
+def delete_all_mesh_objects():
+    bpy.ops.object.select_all(action='DESELECT')
+    bpy.ops.object.select_by_type(type='MESH')
+    bpy.ops.object.delete()
+
+# Delete all mesh objects
+delete_all_mesh_objects()
+
+# Set the dimensions of the cube randomly
+x, y, z = [random.uniform(0.5, 2.5) for i in range(3)]
+
+# Create the cube mesh
+bpy.ops.mesh.primitive_cube_add(size=1, enter_editmode=False, align='WORLD', location=(0, 0, 0), scale=(x, y, z))
+
+# Rename the cube object
+cube = bpy.context.active_object
+cube.name = "Cube"
+
+# Set the active object to the cube
+cube_obj = bpy.context.active_object
+
+# Get the center point of the cube
+cube_center = cube_obj.matrix_world.translation
+
+# Determine the longest edge and set the normal vector accordingly
+dimensions = np.array(cube.dimensions)
+longest_axis = np.argmax(dimensions)
+plane_normal = Vector((0, 0, 0))
+plane_normal[longest_axis] = 1
+
+# Calculate half the diameter of the cube
+third_diameter = dimensions[longest_axis] / 3
+
+# Randomly offset the bisecting plane
+offset = random.uniform(-third_diameter, third_diameter)
+offset_vector = plane_normal * offset
+bisect_plane_center = cube_center + offset_vector
+
+# Duplicate the cube
+bpy.ops.object.select_all(action='DESELECT')
+cube_obj.select_set(True)
+bpy.ops.object.duplicate()
+cube2_obj = bpy.context.active_object
+
+# A list of cube objects and corresponding clear_outer/clear_inner values
+cubes = [(cube_obj, True, False), (cube2_obj, False, True)]
+
+for c, clear_outer, clear_inner in cubes:
+    # Set the current cube as the active object
+    bpy.context.view_layer.objects.active = c
+
+    # Enter edit mode for the current cube
+    bpy.ops.object.mode_set(mode='EDIT')
+
+    # Select all vertices of the current cube
+    bpy.ops.mesh.select_all(action='SELECT')
+
+    # Get a BMesh from the current cube's mesh data
+    bm = bmesh.from_edit_mesh(c.data)
+
+    # Use the Bisect operator to cut the current cube
+    bmesh.ops.bisect_plane(bm, geom=bm.verts[:] + bm.edges[:] + bm.faces[:], plane_co=bisect_plane_center, plane_no=plane_normal, clear_outer=clear_outer, clear_inner=clear_inner)
+    
+    # Update the bmesh
+    bmesh.update_edit_mesh(c.data)
+
+    # Get the edges that border the holes in the bisected mesh
+    boundary_edges = [e for e in bm.edges if len(e.link_faces) == 1]
+
+    # Deselect all vertices in the bmesh
+    for vert in bm.verts:
+        vert.select_set(False)
+
+    # Select the boundary vertices
+    for vert in bm.verts:
+        if vert.is_boundary:
+            vert.select_set(True)
+
+    # Fill the holes in the mesh
+    bmesh.ops.holes_fill(bm, edges=boundary_edges, sides=4)
+
+    # Update the mesh after the bisect and hole-capping operations
+    bmesh.update_edit_mesh(c.data, loop_triangles=True)
+
+     # Exit edit mode
+    bpy.ops.object.mode_set(mode='OBJECT')
+
+
+
+
