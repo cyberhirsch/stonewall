@@ -1,0 +1,93 @@
+ import bpy
+
+def remove_previous_bricks(prefix="Brick_"):
+    bpy.ops.object.select_all(action='DESELECT')
+    for obj in bpy.context.scene.objects:
+        if obj.name.startswith(prefix):
+            obj.select_set(True)
+    bpy.ops.object.delete()
+
+
+def create_brick_wall(brick_width, brick_height, brick_depth, bricks_per_row, num_rows, row_offset, gap_width):
+    bpy.context.scene.cursor.location = (0, 0, 0)
+
+    for row in range(num_rows):
+        for brick in range(bricks_per_row):
+            x = brick * (brick_width + gap_width)
+            y = 0
+            z = row * (brick_height + gap_width)
+
+            if row % 2 == 0:
+                x += row_offset * brick_width
+
+            bpy.ops.mesh.primitive_cube_add(size=1, enter_editmode=False, align='WORLD', location=(x, y, z))
+            brick_obj = bpy.context.active_object
+            brick_obj.scale = (brick_width, brick_depth, brick_height)
+            brick_obj.name = f"Brick_{row}_{brick}"
+            bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+
+# Operator
+class CreateBrickWallOperator(bpy.types.Operator):
+    bl_idname = "mesh.create_brick_wall"
+    bl_label = "Create Brick Wall"
+    bl_options = {"REGISTER", "UNDO"}
+
+    def execute(self, context):
+        props = context.scene.brick_wall_props
+        remove_previous_bricks()
+        create_brick_wall(props.brick_width, props.brick_height, props.brick_depth, props.bricks_per_row, props.num_rows, props.row_offset, props.gap_width)
+        return {"FINISHED"}
+
+# Panel
+class BrickWallPanel(bpy.types.Panel):
+    bl_label = "Brick Wall Generator"
+    bl_idname = "MESH_PT_brick_wall_generator"
+    bl_space_type = "VIEW_3D"
+    bl_region_type = "UI"
+    bl_category = "Create"
+
+    def draw(self, context):
+        layout = self.layout
+        col = layout.column(align=True)
+
+        props = context.scene.brick_wall_props
+
+        col.label(text="Brick Dimensions:")
+        col.prop(props, "brick_width")
+        col.prop(props, "brick_height")
+        col.prop(props, "brick_depth")
+        col.separator()
+        col.prop(props, "bricks_per_row")
+        col.prop(props, "num_rows")
+        col.prop(props, "row_offset")
+        col.prop(props, "gap_width")
+        col.separator()
+        col.operator("mesh.create_brick_wall", text="Create Brick Wall")
+
+# Property Group
+class BrickWallProperties(bpy.types.PropertyGroup):
+    brick_width: bpy.props.FloatProperty(name="Brick Width", default=1.0, min=0.1)
+    brick_height: bpy.props.FloatProperty(name="Brick Height", default=0.5, min=0.1)
+    brick_depth: bpy.props.FloatProperty(name="Brick Depth", default=0.25, min=0.1)
+    bricks_per_row: bpy.props.IntProperty(name="Bricks Per Row", default=10, min=1)
+    num_rows: bpy.props.IntProperty(name="Number of Rows", default=5, min=1)
+    row_offset: bpy.props.FloatProperty(name="Row Offset", default=0.5, min=0.0)
+    gap_width: bpy.props.FloatProperty(name="Gap Width", default=0.1, min=0.0)
+    
+def register():
+    bpy.utils.register_class(CreateBrickWallOperator)
+    bpy.utils.register_class(BrickWallPanel)
+    bpy.utils.register_class(BrickWallProperties)
+    bpy.types.Scene.brick_wall_props = bpy.props.PointerProperty(type=BrickWallProperties)
+
+def unregister():
+    bpy.utils.unregister_class(CreateBrickWallOperator)
+    bpy.utils.unregister_class(BrickWallPanel)
+    bpy.utils.unregister_class(BrickWallProperties)
+    del bpy.types.Scene.brick_wall_props
+
+if __name__ == "__main__":
+    register()
+
+
+
