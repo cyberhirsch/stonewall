@@ -4,12 +4,32 @@ import random
 import numpy as np
 from mathutils import Vector
 
+def create_plane(plane_center, plane_normal, dimensions):
+    bpy.ops.mesh.primitive_plane_add(size=1, enter_editmode=False, align='WORLD', location=plane_center, scale=(dimensions[0], dimensions[1], dimensions[2]))
+    plane_obj = bpy.context.active_object
+    plane_obj.rotation_euler = plane_normal.to_track_quat('Z', 'Y').to_euler()
+
+def get_actual_cube_center(cube_obj):
+    mesh = cube_obj.data
+    world_matrix = cube_obj.matrix_world
+
+    vertex_sum = Vector((0, 0, 0))
+    vertex_count = len(mesh.vertices)
+
+    for vertex in mesh.vertices:
+        global_vertex_position = world_matrix @ vertex.co
+        vertex_sum += global_vertex_position
+
+    actual_center = vertex_sum / vertex_count
+    return actual_center
+
 def bisect_and_fill(cube_obj):
     # Set the active object to the current cube_obj
     bpy.context.view_layer.objects.active = cube_obj
 
     # Get the center point of the cube
-    cube_center = cube_obj.matrix_world.translation
+    cube_center = get_actual_cube_center(cube_obj)
+    
 
     # Determine the longest edge and set the normal vector accordingly
     dimensions = np.array(cube_obj.dimensions)
@@ -24,6 +44,9 @@ def bisect_and_fill(cube_obj):
     offset = random.uniform(-third_diameter, third_diameter)
     offset_vector = plane_normal * offset
     bisect_plane_center = cube_center + offset_vector
+    
+    # Create bisecting plane for debugging
+    #create_plane(bisect_plane_center, plane_normal, dimensions)
 
     # Duplicate the cube
     bpy.ops.object.select_all(action='DESELECT')
