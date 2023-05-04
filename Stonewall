@@ -1,0 +1,53 @@
+import bpy
+import bmesh
+from math import radians
+from mathutils import Vector
+from random import random
+
+def create_stone(position, width, height):
+    mesh = bpy.data.meshes.new("stone")
+    obj = bpy.data.objects.new("stone", mesh)
+
+    bpy.context.collection.objects.link(obj)
+
+    bm = bmesh.new()
+
+    bmesh.ops.create_cube(bm, size=1)
+    bm.to_mesh(mesh)
+    bm.free()
+
+    obj.scale = Vector((width, height, 0.1))
+    obj.location = position
+
+    return obj
+
+def generate_wall(width, height, num_rows, num_columns):
+    wall_origin = Vector((-width / 2, 0, 0))
+    x_spacing = width / num_columns
+    y_spacing = height / num_rows
+
+    for i in range(num_columns):
+        for j in range(num_rows):
+            x_pos = wall_origin.x + i * x_spacing + x_spacing / 2
+            y_pos = wall_origin.y + j * y_spacing + y_spacing / 2
+            position = Vector((x_pos, y_pos, 0))
+
+            stone_width = x_spacing
+            stone_height = y_spacing
+
+            # Split stones with increasing probability from bottom to top
+            split_probability = (j + 1) / num_rows
+            if random() < split_probability:
+                stone_width /= 2
+                create_stone(position - Vector((stone_width / 2, 0, 0)), stone_width, stone_height)
+                create_stone(position + Vector((stone_width / 2, 0, 0)), stone_width, stone_height)
+            else:
+                create_stone(position, stone_width, stone_height)
+
+# Clear existing mesh objects
+bpy.ops.object.select_all(action='DESELECT')
+bpy.ops.object.select_by_type(type='MESH')
+bpy.ops.object.delete()
+
+# Generate a wall with specified dimensions, number of rows, and number of columns
+generate_wall(10, 10, 4, 5)
